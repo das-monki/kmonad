@@ -1,3 +1,4 @@
+{ isDarwin }:
 { pkgs, config, lib, ... }:
 
 let cfg = config.services.kmonad;
@@ -44,76 +45,113 @@ with lib;
 
   config = {
     environment.systemPackages = [ cfg.package ];
-
-    users.groups.uinput = {};
-
-    services.udev.extraRules = mkIf cfg.enable
-      ''
-        # KMonad user access to /dev/uinput
-        KERNEL=="uinput", MODE="0660", GROUP="uinput", OPTIONS+="static_node=uinput"
-      '';
-
-    systemd = with lib; with builtins;
+  } // (if isDarwin then {
+    launchd.user = with lib; with builtins;
       let
-        # If only one config file is supplied, unify all kmonad units under a target
-        make-group = (length cfg.configfiles + length cfg.optionalconfigs) > 1;
-
-        # All systemd units require the graphics target directly (if a single config),
-        # or indirectly (via kmonad.target).
-        wantedBy = [ "graphical.target" ];
-
-        mk-kmonad-target = services: {
-          # The kmonad.target allows you to restart all kmonad instances with:
-          #
-          #     systemctl restart kmonad.target
-          #
-          # this works because this unit requires all config-based services
-          description = "KMonad target";
-          requires = map (service: service.name + ".service") services;
-          inherit wantedBy;
-        };
-
         mk-kmonad-service = { is-optional }: kbd-path:
           let
             # prettify the service's name by taking the config filename...
             conf-file = lists.last (strings.splitString "/" (toString kbd-path));
             # ...and dropping the extension
             conf-name = lists.head (strings.splitString "." conf-file);
-          in {
-          name = "kmonad-" +conf-name;
-          value = {
-            enable = true;
-            description = "KMonad Instance for: " +conf-name;
-            serviceConfig = {
-              Type = "simple";
-              Restart = "always";
-              RestartSec = 3;
-              Nice = -20;
-              ExecStart =
-                "${cfg.package}/bin/kmonad ${kbd-path}" +
-                  # kmonad will error on initialization for any unplugged keyboards
-                  # when run in systemd. All optional configs will silently error
-                  #
-                  # TODO: maybe try to restart the unit?
-                  (if is-optional then " || true" else "");
+          in
+          {
+            name = "kmonad-" + conf-name;
+            value = {
+              serviceConfig = {
+                ProgramArguments = [ "${cfg.package}/bin/kmonad" (toString kbd-path) ];
+                KeepAlive = true;
+                RunAtLoad = true;
+                Disabled = is-optional;
+                Nice = -20;
+                EnvironmentVariables = {
+                  PATH = "${cfg.package}/bin:${config.environment.systemPath}";
+                };
+              };
             };
-          } // (if make-group
-                then { partOf = [ "kmonad.target" ]; }
-                else { inherit wantedBy; });
-        };
+          };
 
-        required-units = map (mk-kmonad-service { is-optional=false; }) cfg.configfiles;
+        required-units = map (mk-kmonad-service { is-optional = false; }) cfg.configfiles;
 
-        optional-units = map (mk-kmonad-service { is-optional=true;  }) cfg.optionalconfigs;
+        optional-units = map (mk-kmonad-service { is-optional = true; }) cfg.optionalconfigs;
 
       in
-        mkIf cfg.enable ({
-            # convert our output [{name=_; value=_;}] map to {name=value;} for the systemd module
-            services = listToAttrs (required-units ++ optional-units);
-          } // (
-            # additionally, if make-group is true, add the targets.kmonad attr and pass in all units
-            attrsets.optionalAttrs make-group
-              { targets.kmonad = mk-kmonad-target (required-units ++ optional-units); })
-          );
-  };
+      mkIf cfg.enable {
+        # convert our output [{name=_; value=_;}] map to {name=value;} for the systemd module
+        agents = listToAttrs (required-units ++ optional-units);
+      };
+  } else {
+    users.groups.uinput = { };
+
+    services.udev.extrarules = mkIf cfg.enable
+      ''
+        # kmonad user access to /dev/uinput
+        kernel=="uinput", mode="0660", group="uinput", options+="static_node=uinput"
+      '';
+
+    systemd = with lib; with builtins;
+      let
+        # if only one config file is supplied, unify all kmonad units under a target
+        make-group = (length cfg.configfiles + length cfg.optionalconfigs) > 1;
+
+        # all systemd units require the graphics target directly (if a single config),
+        # or indirectly (via kmonad.target).
+        wantedby = [ "graphical.target" ];
+
+        mk-kmonad-target = services: {
+          # the kmonad.target allows you to restart all kmonad instances with:
+          #
+          #     systemctl restart kmonad.target
+          #
+          # this works because this unit requires all config-based services
+          description = "kmonad target";
+          requires = map (service: service.name + ".service") services;
+          inherit wantedby;
+        };
+
+        mk-kmonad-service = { is-optional }: kbd-path:
+          let
+            # prettify the service's name by taking the config filename...
+            conf-file = lists.last (strings.splitString "/" (tostring kbd-path));
+            # ...and dropping the extension
+            conf-name = lists.head (strings.splitString "." conf-file);
+          in
+          {
+            name = "kmonad-" + conf-name;
+            value = {
+              enable = true;
+              description = "kmonad instance for: " + conf-name;
+              serviceconfig = {
+                type = "simple";
+                restart = "always";
+                restartsec = 3;
+                nice = -20;
+                execstart =
+                  "${cfg.package}/bin/kmonad ${kbd-path}" +
+                    # kmonad will error on initialization for any unplugged keyboards
+                    # when run in systemd. all optional configs will silently error
+                    #
+                    # todo: maybe try to restart the unit?
+                    (if is-optional then " || true" else "");
+              };
+            } // (if make-group
+            then { partof = [ "kmonad.target" ]; }
+            else { inherit wantedby; });
+          };
+
+        required-units = map (mk-kmonad-service { is-optional = false; }) cfg.configfiles;
+
+        optional-units = map (mk-kmonad-service { is-optional = true; }) cfg.optionalconfigs;
+
+      in
+      mkIf cfg.enable ({
+        # convert our output [{name=_; value=_;}] map to {name=value;} for the systemd module
+        services = listToAttrs (required-units ++ optional-units);
+      } // (
+        # additionally, if make-group is true, add the targets.kmonad attr and pass in all units
+        attrsets.optionalAttrs make-group
+          { targets.kmonad = mk-kmonad-target (required-units ++ optional-units); }
+      )
+      );
+  });
 }

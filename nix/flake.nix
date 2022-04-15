@@ -20,10 +20,14 @@
           withHoogle = true;
           buildInputs = [ pkgs.haskellPackages.cabal-install ];
         };
-      }) // {
+      }) // rec {
         nixosModule = ({ ... }: {
           nixpkgs.overlays = [ self.overlay ];
-          imports = [ ./module-base.nix ];
+          imports = [ (import ./module-base.nix { isDarwin = false; }) ];
+        });
+        darwinModule = ({ ... }: {
+          nixpkgs.overlays = [ self.overlay ];
+          imports = [ (import ./module-base.nix { isDarwin = true; }) ];
         });
 
         overlay = final: prev: {

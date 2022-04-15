@@ -2,5 +2,5 @@
 
 {
   nixpkgs.overlays = [ (final: prev: { kmonad = import ./default.nix; }) ];
-  imports = [ (import ./module-base.nix { isDarwin = false; }) ];
+  imports = [ (import ./module-base.nix { isDarwin = true; }) ];
 }
