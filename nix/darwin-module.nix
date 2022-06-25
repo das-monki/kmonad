@@ -15,8 +15,12 @@ let
       device = lib.mkOption {
         type = lib.types.str;
         example = "Apple Internal Keyboard / Trackpad";
-        # TODO: provide instructions for determining this
-        description = "Product string of the keyboard.";
+        description = ''
+          Product string of the keyboard.
+
+          Product strings can be listed by running
+          `nix run ./nix#list-keyboards` from the root of this flake.
+        '';
       };
 
       defcfg = {
