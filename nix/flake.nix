@@ -3,12 +3,16 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    Karabiner-DriverKit-VirtualHIDDevice = {
+      url = "github:pqrs-org/Karabiner-DriverKit-VirtualHIDDevice?rev=bfe93e7bdd13f766937becd640f91f4b0c02444f";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, ... }@inputs:
+  outputs = { self, nixpkgs, Karabiner-DriverKit-VirtualHIDDevice }:
     let
       # List of supported systems:
-      supportedSystems = [ "x86_64-linux" ];
+      supportedSystems = [ "x86_64-linux" "x86_64-darwin" ];
 
       # List of supported compilers:
       supportedCompilers = [
@@ -46,10 +50,36 @@
 
       # The package derivation:
       derivation = pkgs: haskell: (
-        haskell.callCabal2nix "kmonad" (haskellSourceFilter ../.) { }
+        haskell.callCabal2nixWithOptions "kmonad" (haskellSourceFilter ../.)
+          ((pkgs.lib.strings.optionalString pkgs.stdenv.hostPlatform.isDarwin
+            # FIXME: remove the --no-check flag once tests are fixed
+            "--flag=dext") + " --no-check")
+          { }
       ).overrideAttrs (orig: {
-        buildInputs = orig.buildInputs ++ [ (fakeGit pkgs) ];
-      });
+        buildInputs = orig.buildInputs ++ [ (fakeGit pkgs) ] ++
+          (pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+            pkgs.darwin.apple_sdk.frameworks.CoreFoundation
+            pkgs.darwin.IOKit
+          ]);
+      } // (pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
+        configureFlags = orig.configureFlags ++ [
+          "--extra-include-dirs=c_src/mac/Karabiner-DriverKit-VirtualHIDDevice/src/Client/vendor/include"
+          "--extra-include-dirs=c_src/mac/Karabiner-DriverKit-VirtualHIDDevice/include/pqrs/karabiner/driverkit"
+        ];
+        srcs = [ Karabiner-DriverKit-VirtualHIDDevice ];
+        unpackPhase = ''
+          cp -r "$src" src
+          sourceRoot="$PWD/src"
+
+          # allow writes in src/c_src/mac for the two copies
+          chmod u+w src/c_src/mac
+          rm -rf src/c_src/mac/Karabiner-DriverKit-VirtualHIDDevice
+          cp -r "$srcs" src/c_src/mac/Karabiner-DriverKit-VirtualHIDDevice
+
+          # make everything writable
+          chmod -R u+w src
+        '';
+      }));
     in
     {
       packages = forAllSystems (system:
@@ -71,6 +101,8 @@
       overlays.default = final: prev: {
         kmonad = self.packages.${prev.system}.default;
       };
+
+      darwinModules.default = import ./darwin-module.nix;
 
       nixosModules.default = { ... }: {
         imports = [

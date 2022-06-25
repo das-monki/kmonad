@@ -1,5 +1,22 @@
 {
   "nodes": {
+    "Karabiner-DriverKit-VirtualHIDDevice": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1612454008,
+        "narHash": "sha256-+wdIXkZ0MkyY6J1W1QU5x0LUL0U8fHLKc/W91MfAdR4=",
+        "owner": "pqrs-org",
+        "repo": "Karabiner-DriverKit-VirtualHIDDevice",
+        "rev": "bfe93e7bdd13f766937becd640f91f4b0c02444f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "pqrs-org",
+        "repo": "Karabiner-DriverKit-VirtualHIDDevice",
+        "rev": "bfe93e7bdd13f766937becd640f91f4b0c02444f",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1653326962,
@@ -18,6 +35,7 @@
     },
     "root": {
       "inputs": {
+        "Karabiner-DriverKit-VirtualHIDDevice": "Karabiner-DriverKit-VirtualHIDDevice",
         "nixpkgs": "nixpkgs"
       }
     }

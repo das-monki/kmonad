@@ -99,9 +99,12 @@ manualAliases =
   , ("paus", ["pause", "KeyPause"])
   , ("cmps", ["compose", "cmp", "nUS\\", "KeyCompose"])
   , ("102d", ["102nd", "102", "lsgt", "nubs", "app", "Key102nd"])
-  , ("docs",  ["documents", "dcs", "KeyDocuments"])
-  , ("zenk", ["zenkaku", "KeyZenkakuHankaku", "zenkakuhankaku", "hank"])
-  , ("hang", ["hangeul", "hanguel", "KeyHangeul", "KeyHanguel"])
+  -- FIXME: We haven't yet found keys that corresponds to below
+  --        keynames for macOS and Windows.
+  -- NOTE: macOS: https://github.com/kmonad/kmonad/pull/372#issuecomment-1100908262
+  -- , ("docs",  ["documents", "dcs", "KeyDocuments"])
+  -- , ("zenk", ["zenkaku", "KeyZenkakuHankaku", "zenkakuhankaku", "hank"])
+  -- , ("hang", ["hangeul", "hanguel", "KeyHangeul", "KeyHanguel"])
   ]
 
 -- | F11 and KeyF11 for f11 etc.
