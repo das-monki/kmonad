@@ -26,7 +26,7 @@ int init_sink() {
     /**/
     client->connected.connect([copy] {
                                   std::cout << "connected" << std::endl;
-                                  copy->async_virtual_hid_keyboard_initialize(pqrs::hid::country_code::us);
+                                  copy->async_virtual_hid_keyboard_initialize(pqrs::hid::country_code::switzerland);
                               });
     client->connect_failed.connect([](auto&& error_code) {
                                        std::cout << "connect_failed " << error_code << std::endl;
